@@ -1,0 +1,22 @@
+[project]
+name = "fastapi-users-template"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "anyio>=4.15.1",
+    "dotenv>=0.9.9",
+    "fastapi>=0.143.3",
+    "fastapi-users[sqlalchemy]>=15.0.5",
+    "httpx>=0.28.1",
+    "httpx2>=2.13.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "uvicorn>=0.54.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
