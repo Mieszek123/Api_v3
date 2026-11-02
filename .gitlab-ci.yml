@@ -1,0 +1,71 @@
+image: docker:25.0.3
+
+variables:
+  DOCKER_CGROUPS: "legacy"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_DRIVER: "overlay2"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_BUILDKIT: "1"
+  IMAGE_NAME: "exam-project-api-v3"
+  GL_REGISTRY_URI: "${CI_REGISTRY_IMAGE%/}"
+  TAG_LATEST: "${GL_REGISTRY_URI}/${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}:latest"
+  TAG_COMMIT: "${GL_REGISTRY_URI}/${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}:${CI_COMMIT_SHORT_SHA}"
+  PORT: 4001
+  PORT_EXPOSE: '4001'
+
+services:
+  - name: docker:25-dind
+    command: ["--tls=false", "--host=tcp://0.0.0.0:2375"]
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main")
+
+stages:
+  - build
+  - deploy
+
+build production:
+  environment: production
+  stage: build
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+    - docker pull "$TAG_LATEST" || echo "Cache image not available for $TAG_LATEST"
+    - >
+      docker build
+      --cache-from "$TAG_LATEST"
+      --build-arg BUILDKIT_INLINE_CACHE=1
+      -t "$TAG_COMMIT" -t "$TAG_LATEST"
+      . --build-arg PORT="$PORT"
+    - docker push "$TAG_COMMIT"
+    - docker push "$TAG_LATEST"
+  only:
+    - main
+
+deploy production:
+  stage: deploy
+  environment: production
+  image: alpine:latest
+  only:
+    - main
+  script:
+    - apk update && apk add openssh-client
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -n "$CONTABO_SSH_KEY" | base64 -d > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval $(ssh-agent -s)
+    - ssh-add ~/.ssh/id_rsa
+    - |
+      ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no "$CONTABO_SERVER_USER@$CONTABO_SERVER_IP" <<EOSSH
+        set -e
+        echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+        docker pull "$TAG_COMMIT"
+        docker container rm -f "$IMAGE_NAME-$CI_COMMIT_REF_NAME" >/dev/null 2>&1 || true
+        docker run -d --restart unless-stopped -p "$PORT_EXPOSE:$PORT" --name "$IMAGE_NAME-$CI_COMMIT_REF_NAME" \
+          -e PORT="$PORT" -e DATABASE_URL="$DATABASE_URL" -e SECRET="$SECRET" \
+          "$TAG_COMMIT"
+      EOSSH
+  variables:
+    GIT_STRATEGY: clone
+    GIT_SUBMODULE_STRATEGY: none
