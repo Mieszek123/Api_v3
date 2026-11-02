@@ -6,6 +6,8 @@ from app.db import User, create_db_and_tables
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import auth_backend, current_active_user, fastapi_users
 from app.routes import router
+from app.graph_schemas import graphql_router
+
 
 
 @asynccontextmanager
@@ -43,6 +45,17 @@ app.include_router(
     tags=["users"],
 )
 
+app.include_router(graphql_router, prefix="/graphql")
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/authenticated-route")
 async def authenticated_route(user: User = Depends(current_active_user)):
