@@ -1,1 +1,1 @@
-
+![Schemat bazy](docs/schema.svg)
