@@ -6,7 +6,7 @@ from app.db import User, create_db_and_tables
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import auth_backend, current_active_user, fastapi_users
 from app.routes import router
-from app.graph_schemas import graphql_router
+from app.gql.schema import graphql_router
 
 
 
