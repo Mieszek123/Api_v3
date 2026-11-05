@@ -9,9 +9,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 if TYPE_CHECKING:
+    from app.models.groups import StudentGroup
+    from app.models.organizations import Organization
     from app.models.roles import Role
+    from app.models.exams import Exam
+    from app.models.courses import Course
 
-
+# main table
 class User(SQLAlchemyBaseUserTableUUID, Base):
     __tablename__ = "users"
 
@@ -23,6 +27,17 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     profile: Mapped[Optional["UserProfile"]] = relationship(back_populates="user", passive_deletes=True)
     login_data: Mapped[Optional["UserLoginData"]] = relationship(back_populates="user", passive_deletes=True)
     roles: Mapped[list["Role"]] = relationship(secondary="user_roles", passive_deletes=True)
+    owned_groups: Mapped[list["StudentGroup"]] = relationship(back_populates="owner", passive_deletes=True)
+    owned_organizations: Mapped[list["Organization"]] = relationship(back_populates="owner", passive_deletes=True)
+    owned_exams: Mapped[list["Exam"]] = relationship(back_populates="creator", passive_deletes=True)
+    owned_courses: Mapped[list["Course"]] = relationship(back_populates="creator", passive_deletes=True)
+    # grupy / organizacje, do których user należy (nie te, które posiada)
+    student_groups: Mapped[list["StudentGroup"]] = relationship(
+        secondary="group_students", back_populates="students", passive_deletes=True
+    )
+    organizations: Mapped[list["Organization"]] = relationship(
+        secondary="organization_members", back_populates="members", passive_deletes=True
+    )
 
 
 class UserProfile(Base):
